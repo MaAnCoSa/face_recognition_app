@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reconocimiento Facial en Tiempo Real</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👤</text></svg>">
+    <style>
+        :root {
+            --primary: #f8fafc;
+            --secondary: #f8fafc;
+            --accent: #f8fafc;
+            --success: #4ade80;
+            --danger: #f43f5e;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --gray: #94a3b8;
+            --face-box: #1E293B; /* Changed to black for all faces */
+            --face-label: #1E293B;
+            --face-label-unknown: #1E293B; /* Changed to match known faces */
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #1e293b;
+            color: var(--dark);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            width: 100%;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--gray);
+            font-weight: 400;
+        }
+        
+        .video-section {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            height: 480px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            background-color: #000;
+        }
+        
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        #videoCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #faceCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 70%;
+            pointer-events: none;
+        }
+        
+        #faceLabelsContainer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+            width: 300px;
+            margin-right: auto;
+            flex-wrap: wrap;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn {
+            width: 250px;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 500;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-primary {
+            background-color: var(--primary);
+            color: black;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--secondary);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+        
+        .status-badge {
+            display: inline-flex;
+            width: 250px;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background-color: black;
+            color: white;
+            border-radius: 50px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(76, 201, 240, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(76, 201, 240, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(76, 201, 240, 0);
+            }
+        }
+        
+        .results-section {
+            width: 350px;
+
+            margin-right: auto;
+            max-width: 640px;
+            margin-top: 2rem;
+        }
+        
+        .results-card {
+            background-color: black;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        .results-header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .results-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .people-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            min-height: 100px; /* Added to maintain consistent height */
+        }
+        
+        .person-card {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background-color: gray;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .person-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        .person-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            margin-right: 1rem;
+        }
+        
+        .person-icon.denied {
+            background-color: var(--danger);
+        }
+        
+        .person-info {
+            flex: 1;
+        }
+        
+        .person-name {
+            display: flex;
+            justify-content: center;
+            align-items: center;;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: white;
+            margin-bottom: 0.25rem;
+        }
+        
+        .person-name.denied {
+            color: var(--danger);
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 2rem;
+            color: white;
+            font-weight: 600;
+            font-size: 1.1rem;
+            font-style: normal;
+        }
+        
+        .waiting-detection {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gray);
+            font-style: italic;
+        }
+
+        .bottom-section {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .video-container {
+                height: auto;
+                aspect-ratio: 4/3;
+            }
+            
+            .controls {
+                display: flex;
+                width: 50%;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .btn, .status-badge {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        
+        /* Estilos para la etiqueta del nombre */
+        .face-label {
+            position: absolute;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 14px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transform: translateY(-100%);
+            margin-top: -8px;
+            z-index: 10;
+            white-space: nowrap;
+        }
+        
+        /* iOS specific fixes */
+        @supports (-webkit-touch-callout: none) {
+            .video-container {
+                height: auto !important;
+                aspect-ratio: 4/3 !important;
+            }
+            
+            #video {
+                position: relative;
+                z-index: 1;
+            }
+            
+            /* Fix for iOS Safari issues */
+            body {
+                position: fixed;
+                width: 100%;
+                height: 100%;
+                overflow: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Reconocimiento Facial</h1>
+            <p class="subtitle">Solo se reconocerá a miembros de la clase Redes Neuronales Profundas 2025-1.</p>
+        </header>
+        
+        <div class="video-section">
+            <div class="video-container">
+                <video id="video" autoplay playsinline muted></video>
+                <canvas id="videoCanvas"></canvas>
+                <canvas id="faceCanvas"></canvas>
+                <div id="faceLabelsContainer"></div>
+            </div>
+        </div>
+        
+        <div class="bottom-section">
+            <div class="controls">
+                <button id="switchCameraBtn" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12c0 1.2-.504 2.267-1.513 3.2-.997.933-2.29 1.4-3.867 1.4-1.6 0-3-.467-4.2-1.4-1.2-.933-1.8-2-1.8-3.2 0-1.2.6-2.267 1.8-3.2 1.2-.933 2.6-1.4 4.2-1.4 1.577 0 2.87.467 3.867 1.4C20.497 9.733 21 10.8 21 12z"/>
+                        <path d="M3 9v6"/>
+                        <path d="M7 9v6"/>
+                    </svg>
+                    Cambiar Cámara
+                </button>
+                <button id="requestPermissionBtn" class="btn btn-primary" style="display: none;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                    Permitir Cámara
+                </button>
+                <div class="status-badge" id="status">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+                        <circle cx="12" cy="12" r="10"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    Cámara activa
+                </div>
+            </div>
+
+            <div class="results-section">
+                <div class="results-card">
+                    <div class="results-header">
+                        <h2 class="results-title">Resultado</h2>
+                    </div>
+                    <div id="peopleList" class="people-list">
+                        <div class="waiting-detection">Esperando detección...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        const video = document.getElementById('video');
+        const videoCanvas = document.getElementById('videoCanvas');
+        const faceCanvas = document.getElementById('faceCanvas');
+        const faceLabelsContainer = document.getElementById('faceLabelsContainer');
+        const videoCtx = videoCanvas.getContext('2d');
+        const faceCtx = faceCanvas.getContext('2d');
+        const switchCameraBtn = document.getElementById('switchCameraBtn');
+        const requestPermissionBtn = document.getElementById('requestPermissionBtn');
+        const status = document.getElementById('status');
+        const peopleList = document.getElementById('peopleList');
+        
+        let stream = null;
+        let isRunning = false;
+        let processingInterval = null;
+        let renderingAnimationFrame = null;
+        let cameras = [];
+        let currentCameraIndex = 0;
+        let lastDetectionResults = [];
+        let isProcessing = false;
+        let trackedFaces = []; // Para seguimiento de caras entre frames
+        let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        
+        // Configurar el tamaño de los canvas
+        function setupCanvases() {
+            const containerWidth = video.clientWidth;
+            const containerHeight = video.clientHeight;
+            
+            videoCanvas.width = containerWidth;
+            videoCanvas.height = containerHeight;
+            faceCanvas.width = containerWidth;
+            faceCanvas.height = containerHeight;
+        }
+        
+        // Añade esto después de la declaración de variables globales
+        video.addEventListener('error', (e) => {
+            console.error('Error en el elemento de video:', e);
+            status.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="15" y1="9" x2="9" y2="15"/>
+                    <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+                Error en el video
+            `;
+            //status.style.backgroundColor = 'var(--danger)';
+        });
+        
+        // Inicializar la aplicación
+        async function init() {
+            switchCameraBtn.addEventListener('click', switchCamera);
+            requestPermissionBtn.addEventListener('click', startCamera);
+            window.addEventListener('resize', setupCanvases);
+            
+            try {
+                // Verificar si el navegador soporta getUserMedia
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Tu navegador no soporta acceso a la cámara. Por favor, actualiza a un navegador más reciente.');
+                }
+                
+                // Configurar los canvas
+                setupCanvases();
+                
+                // Enumerar las cámaras disponibles
+                await enumerateCameras();
+                
+                // En iOS, mostrar el botón de solicitar permisos primero
+                if (isIOS) {
+                    requestPermissionBtn.style.display = 'flex';
+                    status.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 8v4M12 16h.01"/>
+                        </svg>
+                        Permiso requerido
+                    `;
+                    //status.style.backgroundColor = 'var(--accent)';
+                } else {
+                    // En otros dispositivos, iniciar la cámara automáticamente
+                    await startCamera();
+                }
+            } catch (error) {
+                console.error('Error al inicializar:', error);
+                status.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                    Error: ${error.message}
+                `;
+                //status.style.backgroundColor = 'var(--danger)';
+            }
+        }
+        
+        // Enumerar las cámaras disponibles en el dispositivo
+        async function enumerateCameras() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                cameras = devices.filter(device => device.kind === 'videoinput');
+                
+                console.log('Cámaras disponibles:', cameras.length);
+                
+                // Deshabilitar el botón de cambio de cámara si solo hay una cámara
+                if (cameras.length <= 1) {
+                    switchCameraBtn.disabled = true;
+                    switchCameraBtn.style.opacity = '0.5';
+                    switchCameraBtn.style.cursor = 'not-allowed';
+                } else {
+                    switchCameraBtn.disabled = false;
+                    switchCameraBtn.style.opacity = '1';
+                    switchCameraBtn.style.cursor = 'pointer';
+                }
+            } catch (error) {
+                console.error('Error al enumerar cámaras:', error);
+                status.textContent = 'Error al acceder a las cámaras';
+                //status.style.backgroundColor = 'var(--danger)';
+            }
+        }
+        
+        // Iniciar la cámara
+        async function startCamera() {
+            try {
+                // Ocultar el botón de solicitar permisos
+                requestPermissionBtn.style.display = 'none';
+                
+                // Si ya hay un stream activo, detenerlo
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                
+                // Configuración específica para iOS
+                let constraints = {
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    },
+                    audio: false
+                };
+                
+                // Si hay cámaras disponibles, intentar usar la seleccionada
+                if (cameras.length > 0) {
+                    try {
+                        constraints.video.deviceId = { exact: cameras[currentCameraIndex].deviceId };
+                        stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    } catch (deviceError) {
+                        console.warn("No se pudo acceder a la cámara específica, intentando con cualquier cámara disponible");
+                        // Si falla con la cámara específica, intentar con cualquier cámara
+                        constraints.video = { 
+                            facingMode: "user",
+                            width: { ideal: 640 },
+                            height: { ideal: 480 }
+                        };
+                        stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    }
+                } else {
+                    // Si no hay cámaras enumeradas, intentar con cualquier cámara frontal
+                    constraints.video = { 
+                        facingMode: "user",
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    };
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                }
+                
+                // Configuración específica para iOS
+                if (isIOS) {
+                    video.setAttribute('playsinline', 'playsinline');
+                    video.setAttribute('muted', 'muted');
+                }
+                
+                video.srcObject = stream;
+                
+                // Esperar a que el video esté listo
+                await new Promise(resolve => {
+                    video.onloadedmetadata = () => {
+                        resolve();
+                    };
+                });
+                
+                // Iniciar el video
+                await video.play();
+                
+                // Actualizar la interfaz
+                isRunning = true;
+                status.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+                        <circle cx="12" cy="12" r="10"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    Cámara activa
+                `;
+                //status.style.backgroundColor = 'var(--accent)';
+                
+                // Iniciar el renderizado continuo del video
+                startVideoRendering();
+                
+                // Iniciar el reconocimiento facial
+                startFaceRecognition();
+                
+                // Volver a enumerar las cámaras después de obtener permisos
+                // Esto ayuda en dispositivos móviles donde las etiquetas de las cámaras
+                // solo están disponibles después de obtener permisos
+                await enumerateCameras();
+            } catch (error) {
+                console.error('Error al iniciar la cámara:', error);
+                status.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                    Error al acceder a la cámara
+                `;
+                //status.style.backgroundColor = 'var(--danger)';
+                
+                // Mostrar mensaje de error más específico
+                peopleList.innerHTML = `
+                    <div class="no-results">
+                        <p>No se pudo acceder a la cámara. Por favor, asegúrate de:</p>
+                        <ul style="text-align: left; margin-top: 10px;">
+                            <li>Dar permisos de cámara al navegador</li>
+                            <li>Tener una cámara conectada y funcionando</li>
+                            <li>No tener la cámara en uso por otra aplicación</li>
+                            </ul>
+                    </div>
+                `;
+                
+                // Mostrar el botón de solicitar permisos
+                requestPermissionBtn.style.display = 'flex';
+            }
+        }
+        
+        // Iniciar el renderizado continuo del video
+        function startVideoRendering() {
+            // Cancelar cualquier animación anterior
+            if (renderingAnimationFrame) {
+                cancelAnimationFrame(renderingAnimationFrame);
+            }
+            
+            // Función para renderizar el video continuamente
+            function renderVideo() {
+                if (isRunning && video.readyState === video.HAVE_ENOUGH_DATA) {
+                    // Dibujar el video en el canvas
+                    videoCtx.drawImage(video, 0, 0, videoCanvas.width, videoCanvas.height);
+                    
+                    // Renderizar los cuadros de detección facial con animación suave
+                    renderFaceBoxes();
+                }
+                
+                // Continuar el bucle de renderizado
+                renderingAnimationFrame = requestAnimationFrame(renderVideo);
+            }
+            
+            // Iniciar el bucle de renderizado
+            renderVideo();
+        }
+        
+        // Cambiar de cámara
+        async function switchCamera() {
+            if (cameras.length <= 1) return;
+            
+            // Cambiar al siguiente índice de cámara
+            currentCameraIndex = (currentCameraIndex + 1) % cameras.length;
+            
+            // Detener el reconocimiento actual
+            if (processingInterval) {
+                clearInterval(processingInterval);
+                processingInterval = null;
+            }
+            
+            // Limpiar el canvas de caras y las etiquetas
+            faceCtx.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
+            faceLabelsContainer.innerHTML = '';
+            
+            // Reiniciar el seguimiento de caras
+            trackedFaces = [];
+            
+            // Reiniciar la cámara con la nueva selección
+            await startCamera();
+        }
+        
+        // Iniciar el reconocimiento facial
+        function startFaceRecognition() {
+            // First check if models are loaded
+            checkModelsStatus();
+        }
+
+        // Add this new function to check model status
+        async function checkModelsStatus() {
+            try {
+                const response = await fetch('/status');
+                const data     = await response.json();
+
+                console.log("Status check response:", data);
+
+                if (data.models_loaded) {
+                    // Models are loaded, start processing
+                    status.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+                            <circle cx="12" cy="12" r="10"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        Modelo cargado
+                    `;
+                    //status.style.backgroundColor = 'var(--success)';
+
+                    if (processingInterval) clearInterval(processingInterval);
+                    processingInterval = setInterval(processFrame, 500);
+
+                    if (peopleList.querySelector('.waiting-detection')) {
+                        peopleList.innerHTML = '<div class="waiting-detection">Esperando detección...</div>';
+                    }
+                } else {
+                    // Models still loading, show status and check again in 3 seconds
+                    status.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                        Cargando modelos...
+                    `;
+                    //status.style.backgroundColor = 'var(--accent)';
+
+                    peopleList.innerHTML = `
+                        <div class="waiting-detection">
+                            <p>Cargando modelo...</p>
+                        </div>`;
+
+                    setTimeout(checkModelsStatus, 3000);
+                }
+            } catch (error) {
+                console.error('Error checking model status:', error);
+                status.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                    Error de conexión
+                `;
+                //status.style.backgroundColor = 'var(--danger)';
+                setTimeout(checkModelsStatus, 5000);
+            }
+        }
+        
+        // Procesar un frame del video
+        async function processFrame() {
+            if (!isRunning || !stream || !stream.active || isProcessing) return;
+            
+            try {
+                isProcessing = true;
+                
+                // Verificar si el video está listo
+                if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+                    isProcessing = false;
+                    return;
+                }
+                
+                // Obtener la imagen del canvas de video
+                const imageData = videoCanvas.toDataURL('image/jpeg', 0.8);
+                
+                // Enviar la imagen al servidor para reconocimiento
+                const response = await fetch('/reconocer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ image: imageData })
+                });
+                
+                if (!response.ok) {
+                    // If models aren't loaded (503), handle gracefully
+                    if (response.status === 503) {
+                        console.log('Modelos aún cargando, esperando...');
+                        // No need to throw error, just return
+                        isProcessing = false;
+                        return;
+                    }
+                    throw new Error(`Error del servidor: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Actualizar los resultados de detección con seguimiento
+                    updateTrackedFaces(data.resultados);
+                    
+                    // Mostrar los resultados
+                    displayResults(data.resultados);
+                    
+                    // Actualizar las etiquetas de nombres
+                    updateFaceLabels();
+                } else {
+                    console.error('Error en el reconocimiento:', data.error);
+                }
+            } catch (error) {
+                console.error('Error al procesar el frame:', error);
+                
+                // Si hay un error de conexión, mostrar mensaje
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    peopleList.innerHTML = '<div class="no-results">Error de conexión con el servidor. Verifica que el servidor Flask esté ejecutándose.</div>';
+                }
+            } finally {
+                isProcessing = false;
+            }
+        }
+        
+        // Actualizar las caras rastreadas con los nuevos resultados
+        function updateTrackedFaces(newResults) {
+            if (trackedFaces.length === 0) {
+                // Primera detección, inicializar el seguimiento
+                trackedFaces = newResults.map(result => ({
+                    ...result,
+                    targetX: result.bbox[0],
+                    targetY: result.bbox[1],
+                    targetW: result.bbox[2],
+                    targetH: result.bbox[3],
+                    currentX: result.bbox[0],
+                    currentY: result.bbox[1],
+                    currentW: result.bbox[2],
+                    currentH: result.bbox[3],
+                    id: Math.random().toString(36).substr(2, 9)
+                }));
+            } else {
+                // Actualizar las caras existentes y añadir nuevas
+                const updatedFaces = [];
+                
+                // Para cada nueva detección
+                newResults.forEach(newFace => {
+                    const [x, y, w, h] = newFace.bbox;
+                    
+                    // Buscar la cara más cercana en las caras rastreadas
+                    let closestFace = null;
+                    let minDistance = Infinity;
+                    
+                    trackedFaces.forEach(trackedFace => {
+                        const centerX1 = x + w/2;
+                        const centerY1 = y + h/2;
+                        const centerX2 = trackedFace.targetX + trackedFace.targetW/2;
+                        const centerY2 = trackedFace.targetY + trackedFace.targetH/2;
+                        
+                        const distance = Math.sqrt(
+                            Math.pow(centerX1 - centerX2, 2) + 
+                            Math.pow(centerY1 - centerY2, 2)
+                        );
+                        
+                        if (distance < minDistance && distance < 100) { // Umbral de distancia
+                            minDistance = distance;
+                            closestFace = trackedFace;
+                        }
+                    });
+                    
+                    if (closestFace) {
+                        // Actualizar la cara existente
+                        closestFace.bbox = newFace.bbox;
+                        closestFace.nombre = newFace.nombre;
+                        closestFace.distancia = newFace.distancia;
+                        closestFace.targetX = x;
+                        closestFace.targetY = y;
+                        closestFace.targetW = w;
+                        closestFace.targetH = h;
+                        
+                        updatedFaces.push(closestFace);
+                    } else {
+                        // Añadir una nueva cara
+                        updatedFaces.push({
+                            ...newFace,
+                            targetX: x,
+                            targetY: y,
+                            targetW: w,
+                            targetH: h,
+                            currentX: x,
+                            currentY: y,
+                            currentW: w,
+                            currentH: h,
+                            id: Math.random().toString(36).substr(2, 9)
+                        });
+                    }
+                });
+                
+                // Actualizar la lista de caras rastreadas
+                trackedFaces = updatedFaces;
+            }
+            
+            // Guardar los resultados para uso posterior
+            lastDetectionResults = newResults;
+        }
+        
+        // Renderizar los cuadros de detección facial con animación suave
+        function renderFaceBoxes() {
+            // Limpiar solo el canvas de caras, no el de video
+            faceCtx.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
+            
+            // Si no hay caras rastreadas, salir
+            if (trackedFaces.length === 0) return;
+            
+            // Renderizar cada cara con animación suave
+            trackedFaces.forEach(face => {
+                // Interpolar suavemente hacia la posición objetivo
+                face.currentX = lerp(face.currentX, face.targetX, 0.3);
+                face.currentY = lerp(face.currentY, face.targetY, 0.3);
+                face.currentW = lerp(face.currentW, face.targetW, 0.3);
+                face.currentH = lerp(face.currentH, face.targetH, 0.3);
+                
+                // Dibujar el rectángulo con estilo mejorado - mismo color para todas las caras
+                faceCtx.strokeStyle = 'var(--face-box)';
+                faceCtx.lineWidth = 3;
+                faceCtx.beginPath();
+                faceCtx.roundRect(
+                    face.currentX, 
+                    face.currentY, 
+                    face.currentW, 
+                    face.currentH, 
+                    8
+                );
+                faceCtx.stroke();
+            });
+        }
+        
+        // Actualizar las etiquetas de nombres
+        function updateFaceLabels() {
+            // Limpiar las etiquetas existentes
+            faceLabelsContainer.innerHTML = '';
+            
+            // Crear una etiqueta para cada cara
+            trackedFaces.forEach(face => {
+                // Crear un elemento para la etiqueta
+                const label = document.createElement('div');
+                label.className = 'face-label';
+                label.textContent = face.nombre;
+                
+                // Posicionar la etiqueta sobre la cara
+                label.style.position = 'absolute';
+                label.style.left = `${face.currentX}px`;
+                label.style.top = `${face.currentY - 30}px`;
+                
+                // Estilo según si es conocido o desconocido - mismo color para todos
+                label.style.backgroundColor = 'var(--face-label)';
+                
+                // Añadir la etiqueta al contenedor
+                faceLabelsContainer.appendChild(label);
+            });
+        }
+        
+        // Función de interpolación lineal para animación suave
+        function lerp(start, end, factor) {
+            return start + (end - start) * factor;
+        }
+        
+        
+        function displayResults(resultados) {
+            peopleList.innerHTML = '';
+
+            // 1) Sin detección - no mostrar nada
+            if (resultados.length === 0) {
+                peopleList.innerHTML = ''; // Dejamos vacío el contenedor
+                return;
+            }
+
+            // 2) Nombre "unknown"
+            const nombre = resultados[0].nombre.toLowerCase();
+            if (nombre === 'unknown' || nombre === 'desconocido') {
+                // Usar el mismo estilo que el mensaje de bienvenida
+                const denyCard = document.createElement('div');
+                denyCard.className = 'person-card';
+                denyCard.innerHTML = `
+                    <div class="person-info">
+                    <div class="person-name">Acceso Denegado</div>
+                    </div>`;
+                peopleList.appendChild(denyCard);
+                return;
+            }
+
+            // 3) Bienvenida
+            const welcomeCard = document.createElement('div');
+            welcomeCard.className = 'person-card';
+            welcomeCard.innerHTML = `
+                <div class="person-info">
+                <div class="person-name">${resultados[0].nombre}</div>
+                </div>`;
+            peopleList.appendChild(welcomeCard);
+
+            // 4) Lista de reconocidos (si quieres evitar repetir al primero):
+            resultados.slice(1).forEach(resultado => {
+                const personDiv = document.createElement('div');
+                personDiv.className = 'person-card';
+                personDiv.innerHTML = `
+                <div class="person-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" 
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" 
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                </div>
+                <div class="person-info">
+                    <div class="person-name">${resultado.nombre}</div>
+                </div>`;
+                peopleList.appendChild(personDiv);
+            });
+        }
+
+        
+        // Inicializar la aplicación cuando se cargue la página
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
+
