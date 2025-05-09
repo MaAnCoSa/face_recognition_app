@@ -1,0 +1,5 @@
+This is a placeholder file. In a real implementation, you would download the actual model files
+from TensorFlow Hub and place them here. The model.json file would reference these binary files.
+
+For now, we're using the remote model URLs, but having this directory structure in place
+allows for an easy transition to locally hosted models if needed.
